@@ -1,0 +1,67 @@
+{% extends 'base.html' %}{% block workspace %}
+{% set fm=stage.metrics %}
+<div class="grid">
+  <section class="panel">
+    <div class="panel__head"><h2>基金分配唯一结果</h2>
+      <span class="tag {{'bad' if not fm.published else ''}}">{{'已发布' if fm.published else '未发布：对账未平'}}</span></div>
+    <div class="panel__body">
+      <div class="ruling">
+        <div class="ruling__pick">裁决：{{fm.ruling.selected_label}}（{{fm.ruling.selected}}）</div>
+        <div class="ruling__reject">否决：{{fm.ruling.rejected_label}}（{{fm.ruling.rejected}}）</div>
+        <ul class="ruling__reasons">{% for reason in fm.ruling.reasons %}<li>{{reason}}</li>{% endfor %}</ul>
+      </div>
+      <div class="kpis kpis--fund">
+        {% for label,value in [('日包干基金 / 元',fm.daily_fund),('应补合计',fm.fund_due_total),('实补合计',fm.fund_paid_total),('缺口合计',fm.fund_shortfall_total),('忙日数',fm.busy_days),('部分补偿行程',fm.shortfall_count),('追回合计',fm.clawback_total),('运营方数',fm.operator_count)] %}
+        <div class="kpi"><span>{{label}}</span><b>{{value}}</b></div>{% endfor %}
+      </div>
+      <input class="records-search" id="filter" placeholder="筛选卡号、线路或运营方" aria-label="筛选记录">
+    </div>
+    <div class="table-scroll">
+      <table><thead><tr><th>来源行</th>{% for c in columns %}<th>{{labels.get(c,c)}}</th>{% endfor %}</tr></thead>
+        <tbody id="records">
+        {% for row in rows %}
+        <tr class="{{'difference' if row.get('fund_status')=='部分补偿' else ''}}">
+          <td>{{row.get('_sources',[])|join(',')}}</td>
+          {% for c in columns %}<td title="{{row.get(c,'')}}">{{row.get(c,'—')}}</td>{% endfor %}
+        </tr>
+        {% else %}<tr><td class="empty">选择样例后运行。</td></tr>{% endfor %}
+        </tbody></table>
+    </div>
+  </section>
+  <div class="stack">
+    <section class="panel">
+      <div class="panel__head"><h2>日包干基金账</h2><span>元 · 业务日</span></div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>业务日</th><th>基金额度</th><th>应补</th><th>实补</th><th>缺口</th><th>结余</th><th>忙日</th><th>申领/部分</th>
+      </tr></thead><tbody>
+      {% for d in fm.daily %}
+      <tr class="{{'difference' if d.over_cap else ''}}">
+        <td>{{d.business_day}}</td><td>{{d.fund_cap}}</td><td>{{d.fund_due_total}}</td>
+        <td>{{d.fund_paid_total}}</td><td>{{d.fund_shortfall_total}}</td><td>{{d.fund_remaining}}</td>
+        <td>{{'是' if d.over_cap else '否'}}</td><td>{{d.claim_count}} / {{d.shortfall_count}}</td>
+      </tr>
+      {% else %}<tr><td colspan="8" class="empty">暂无基金账。</td></tr>{% endfor %}
+      </tbody></table></div>
+    </section>
+    <section class="panel">
+      <div class="panel__head"><h2>运营方分账（线路归属裁决）</h2><span>按应得比例共担</span></div>
+      <div class="table-scroll"><table><thead><tr>
+        <th>业务日</th><th>运营方</th><th>应补</th><th>实补</th><th>承担缺口</th><th>分账比例</th>
+      </tr></thead><tbody>
+      {% for o in fm.operator_ledger %}
+      <tr><td>{{o.business_day}}</td><td>{{o.operator}}</td><td>{{o.fund_due}}</td>
+        <td>{{o.fund_paid}}</td><td>{{o.fund_shortfall}}</td><td>{{o.share_ratio}}</td></tr>
+      {% else %}<tr><td colspan="6" class="empty">暂无分账。</td></tr>{% endfor %}
+      </tbody></table></div>
+    </section>
+    <section class="panel">
+      <div class="panel__head"><h2>对账闸门</h2><span>{{index+1}} / {{modules|length}} · {{'通过' if fm.published else '阻断'}}</span></div>
+      <div class="panel__body">
+        {% for c in fm.checks %}
+        <div class="balance"><span class="{{'bad' if not c.ok else ''}}">{{'✓' if c.ok else '✗'}} {{c.code}}</span><span class="meta">{{c.detail}}</span></div>
+        {% endfor %}
+        <div class="balance"><span>结算发布状态</span><span class="meta">{{'可发布' if fm.published else '未发布'}}</span></div>
+      </div>
+    </section>
+  </div>
+</div>{% endblock %}
